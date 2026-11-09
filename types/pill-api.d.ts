@@ -34,6 +34,10 @@ export type PillAnchor = {
 	background: string;
 	/** Foreground SGR of the pill; "" derives a legible one from the background. */
 	foreground: string;
+	/** Zero-based row of the bar the pill sits on; 0 when the bar is one row. */
+	row?: number;
+	/** Row count of the bar the pill was drawn on, so a bubble can sit above its own row. */
+	rows?: number;
 };
 
 /**

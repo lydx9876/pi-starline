@@ -28,6 +28,11 @@ export type PillConfig = {
 	caps: PillCaps;
 	/** Unfold a pill's bubble upward from the pill instead of showing it at once. */
 	bubbleAnimation: boolean;
+	/**
+	 * Segment name that starts the bar's second row: that segment and everything
+	 * after it move down, the rest stays on the first row. `null` keeps one row.
+	 */
+	rowBreak: string | null;
 };
 
 export const EXTENSION_STATUS_SEGMENT = "extensionStatus";
@@ -78,6 +83,7 @@ export const DEFAULT_PILL_CONFIG: PillConfig = {
 	bold: true,
 	caps: "round",
 	bubbleAnimation: true,
+	rowBreak: null,
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -98,6 +104,11 @@ function parseCaps(value: unknown): PillCaps {
 	return value === "right" || value === "none" || value === "round"
 		? value
 		: DEFAULT_PILL_CONFIG.caps;
+}
+
+/** A row break is a segment name that is actually on the bar; anything else is no break. */
+function parseRowBreak(value: unknown): string | null {
+	return typeof value === "string" && isKnownPillSegment(value) ? value : null;
 }
 
 /** A segment name is usable if it maps to a variable or addresses a status. */
@@ -181,5 +192,6 @@ export function normalizePillConfig(value: unknown): PillConfig {
 			typeof value.bubbleAnimation === "boolean"
 				? value.bubbleAnimation
 				: DEFAULT_PILL_CONFIG.bubbleAnimation,
+		rowBreak: parseRowBreak(value.rowBreak),
 	};
 }

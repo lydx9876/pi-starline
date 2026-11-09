@@ -10,6 +10,18 @@ notes, so write it for someone reading the releases page, not for someone readin
 the diff. A tag with no section here fails the release before anything reaches
 npm.
 
+## [0.12.1] - 2026-11-09
+
+One addition, local to this fork: the pill bar can be drawn on two rows.
+
+**Added**
+
+- `pill.rowBreak` names a segment on the bar; that segment and everything after it
+  move to a second row, so the core read-outs keep one line while extension
+  statuses get their own. Omitted, or a name that is not on the bar, keeps the
+  single row as before. Bubbles open above the row that was clicked, and clicks
+  on either row hit the pill they are over.
+
 ## [0.12.0] - 2026-11-08
 
 Four changes: a wide pill gives up width instead of taking the segments behind it

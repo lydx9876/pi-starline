@@ -292,6 +292,7 @@ The footer is a bar of coloured pills joined by seamless powerline arrows. `pill
 | `bold`            | `true` (default), `false`                                                                                                                             | Bold segment text                                                                                                                      |
 | `caps`            | `round` (default), `right`, `none`                                                                                                                    | How the bar's ends are closed                                                                                                          |
 | `bubbleAnimation` | `true` (default), `false`                                                                                                                             | Unfold a clicked pill's bubble upward from the pill (60 ms) instead of showing it at once. Applies from the next session or `/reload`. |
+| `rowBreak`        | a segment name on the bar, or omitted                                                                                                                  | Draw the bar on two rows: the named segment and everything after it move to a second row below the first, and a bubble opens above the row that was clicked. Omitted or a name that is not on the bar keeps one row. |
 
 Order and visibility of the bar live in `pill.segments`. The **Pills** tab in
 `/starline` edits the same list: one row per segment, and its value is the

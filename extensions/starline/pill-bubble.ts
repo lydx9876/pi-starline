@@ -143,7 +143,7 @@ export function pillBubbleWidth(
  * edge opens.
  *
  * With an anchor the bubble starts a few columns left of the pill and is pushed
- * left only when it would run off the screen; it stays on the footer row either
+ * left only when it would run off the screen; it sits on the pill's own row either
  * way. The opening is the pill's own columns, and is dropped when the pill is too
  * close to the bubble's edge for the tab to have a side, leaving a closed bottom.
  * With no anchor (a `/starline` command while the pill is not on screen) it is
@@ -176,13 +176,14 @@ export function pillBubblePlacement(
 
 	return {
 		leftColumn,
-		// Bottom-left anchors the row to the bottom; the -1 keeps the footer row
+		// Bottom-left anchors the row to the bottom; the offset keeps the clicked row
 		// itself visible, so the bubble's bottom edge lands right on top of the pill.
+		// A two-row bar moves the bubble up by the rows below the one that was hit.
 		options: {
 			width,
 			anchor: "bottom-left",
 			offsetX: leftColumn,
-			offsetY: -1,
+			offsetY: -1 - Math.max(0, (anchor?.rows ?? 1) - 1 - (anchor?.row ?? 0)),
 		},
 		attached: anchor !== undefined,
 		tab,

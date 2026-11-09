@@ -81,6 +81,68 @@ type FooterComponent = {
  */
 const PILL_HIT_MAP_LIMIT = 4;
 
+/**
+ * The rows the bar is drawn on: one, or two when `pill.rowBreak` names a segment
+ * that is actually on the bar. The named segment and everything after it move to
+ * the second row, which is how the core read-outs stay on one line while the
+ * extension statuses get their own.
+ */
+export function splitPillSegmentRows(pill: {
+	segments: readonly string[];
+	rowBreak?: string | null;
+}): string[][] {
+	const segments = [...pill.segments];
+	const at = pill.rowBreak ? segments.indexOf(pill.rowBreak) : -1;
+	// A break on the first segment would leave row one empty, and a break that is
+	// not on the bar cannot happen (normalize drops unknown names); both stay one row.
+	if (at <= 0 || at >= segments.length) return [segments];
+	return [segments.slice(0, at), segments.slice(at)];
+}
+
+/**
+ * Clamp one row's spans to what the terminal actually shows, and record the anchor
+ * each pill needs for a bubble. The row and the row count travel with the anchor,
+ * so a bubble opens above the row that was clicked rather than over the bar.
+ */
+function recordRowSpans(
+	width: number,
+	spans: readonly PillSpan[],
+	columnOffset: number,
+	lineWidth: number,
+	row: number,
+	rows: number,
+	anchorsOut: Map<string, PillAnchor>,
+): PillSpan[] {
+	const visibleSpans: PillSpan[] = [];
+	for (const span of spans) {
+		// The bar starts `columnOffset` columns in, and the line may have been cut
+		// again after the bar was; clamp to what the terminal actually shows.
+		const startColumn = Math.min(lineWidth, span.startColumn + columnOffset);
+		const endColumn = Math.min(lineWidth, span.endColumn + columnOffset);
+		if (endColumn <= startColumn) continue;
+		const bodyStartColumn = Math.min(endColumn - 1, span.bodyStartColumn + columnOffset);
+		const bodyEndColumn = Math.max(
+			bodyStartColumn + 1,
+			Math.min(endColumn, span.bodyEndColumn + columnOffset),
+		);
+		visibleSpans.push({ ...span, startColumn, endColumn, bodyStartColumn, bodyEndColumn });
+		// Same columns, plus the colours, for anything that wants to sit next to
+		// this pill later — a bubble today, whatever the next action needs.
+		anchorsOut.set(span.key, {
+			key: span.key,
+			startColumn: bodyStartColumn,
+			endColumn: bodyEndColumn,
+			centerColumn: Math.floor((startColumn + endColumn - 1) / 2),
+			terminalWidth: width,
+			background: span.bg,
+			foreground: span.fg,
+			row,
+			rows,
+		});
+	}
+	return visibleSpans;
+}
+
 /** Prefix a label with an icon, collapsing to the label when there is no icon. */
 function withIcon(icon: string, label: string): string {
 	if (!label) return "";
@@ -133,52 +195,12 @@ export function installFooter(
 		});
 
 		/**
-		 * Pill hit areas from the render that is on screen, per width.
+		 * Pill hit areas from the render that is on screen, per width and per row.
 		 *
 		 * Replaced on every render, read only by `handleMouse`: no timers, no
 		 * invalidation, nothing to keep in sync with what the footer drew.
 		 */
-		const pillSpansByWidth = new Map<number, PillSpan[]>();
-
-		const rememberPillSpans = (
-			width: number,
-			spans: readonly PillSpan[],
-			columnOffset: number,
-			lineWidth: number,
-		) => {
-			const visibleSpans: PillSpan[] = [];
-			const anchors = new Map<string, PillAnchor>();
-			for (const span of spans) {
-				// The bar starts `columnOffset` columns in, and the line may have been cut
-				// again after the bar was; clamp to what the terminal actually shows.
-				const startColumn = Math.min(lineWidth, span.startColumn + columnOffset);
-				const endColumn = Math.min(lineWidth, span.endColumn + columnOffset);
-				if (endColumn <= startColumn) continue;
-				const bodyStartColumn = Math.min(endColumn - 1, span.bodyStartColumn + columnOffset);
-				const bodyEndColumn = Math.max(
-					bodyStartColumn + 1,
-					Math.min(endColumn, span.bodyEndColumn + columnOffset),
-				);
-				visibleSpans.push({ ...span, startColumn, endColumn, bodyStartColumn, bodyEndColumn });
-				// Same columns, plus the colours, for anything that wants to sit next to
-				// this pill later — a bubble today, whatever the next action needs.
-				anchors.set(span.key, {
-					key: span.key,
-					startColumn: bodyStartColumn,
-					endColumn: bodyEndColumn,
-					centerColumn: Math.floor((startColumn + endColumn - 1) / 2),
-					terminalWidth: width,
-					background: span.bg,
-					foreground: span.fg,
-				});
-			}
-			pillSpansByWidth.set(width, visibleSpans);
-			setPillAnchors(anchors);
-			if (pillSpansByWidth.size > PILL_HIT_MAP_LIMIT) {
-				const oldest = pillSpansByWidth.keys().next();
-				if (!oldest.done) pillSpansByWidth.delete(oldest.value);
-			}
-		};
+		const pillSpansByWidth = new Map<number, PillSpan[][]>();
 
 		/**
 		 * The pill this mouse-down already dealt with: it opened that pill's bubble, or
@@ -212,11 +234,13 @@ export function installFooter(
 			 */
 			handleMouse(event: FooterMouseEvent): FooterMouseResult | undefined {
 				if (!Number.isFinite(event.x) || !Number.isFinite(event.y)) return undefined;
-				// The pill bar is the one and only row this component draws.
-				if (event.y !== 0) return undefined;
 				const width = typeof event.width === "number" ? Math.floor(event.width) : undefined;
 				if (width === undefined) return undefined;
-				const spans = pillSpansByWidth.get(width);
+				const spansByRow = pillSpansByWidth.get(width);
+				if (!spansByRow) return undefined;
+				// The bar draws one or two rows; a y outside them is not a pill.
+				const row = Math.floor(event.y);
+				const spans = row >= 0 && row < spansByRow.length ? spansByRow[row] : undefined;
 				if (!spans) return undefined;
 
 				const hit = spans.find((span) => event.x >= span.startColumn && event.x < span.endColumn);
@@ -248,6 +272,8 @@ export function installFooter(
 					terminalWidth: width,
 					background: hit.bg,
 					foreground: hit.fg,
+					row,
+					rows: spansByRow.length,
 				});
 
 				/**
@@ -586,42 +612,79 @@ export function installFooter(
 					}
 				};
 
-				const spans: PillSpan[] = [];
-				const bar = renderPillBar(
-					collectPillInputs(
-						config.pill.segments,
-						[...extensionStatuses.left, ...extensionStatuses.middle, ...extensionStatuses.right],
-						renderVariable,
-						pillSpecFor,
-						(key) => getExtensionStatusColor(config, key) ?? config.colors.extensionStatus,
-						(key) => getExtensionStatusIcon(config, key),
-						// A squeezed git pill must keep its dirty counts and operation; the
-						// branch name is the part that gives way.
-						(segment) => (segment === "git" ? git.labelTailColumns : 0),
-					),
-					theme,
-					colorSource,
-					config.pill,
-					width,
-					{
-						ascii: iconMode === "ascii",
-						onSpan: (span) => spans.push(span),
-						// The counter pill answers a click with what it is counting, so the
-						// render has to say which pills it left out. See `pill-overflow.ts`.
-						onOverflow: setPillOverflowRows,
-					},
-				);
+				// One row normally, two when `pill.rowBreak` names a segment on the bar:
+				// everything from that segment on drops to the second row.
+				const segmentRows = splitPillSegmentRows(config.pill);
+				const statuses = [
+					...extensionStatuses.left,
+					...extensionStatuses.middle,
+					...extensionStatuses.right,
+				];
+				const lines: string[] = [];
+				const spansByRow: PillSpan[][] = [];
+				const anchors = new Map<string, PillAnchor>();
+				for (const [rowIndex, rowSegments] of segmentRows.entries()) {
+					const spans: PillSpan[] = [];
+					const bar = renderPillBar(
+						collectPillInputs(
+							rowSegments,
+							statuses,
+							renderVariable,
+							pillSpecFor,
+							(key) => getExtensionStatusColor(config, key) ?? config.colors.extensionStatus,
+							(key) => getExtensionStatusIcon(config, key),
+							// A squeezed git pill must keep its dirty counts and operation; the
+							// branch name is the part that gives way.
+							(segment) => (segment === "git" ? git.labelTailColumns : 0),
+						),
+						theme,
+						colorSource,
+						config.pill,
+						width,
+						{
+							ascii: iconMode === "ascii",
+							onSpan: (span) => spans.push(span),
+							// The counter pill answers a click with what it is counting, so the
+							// render has to say which pills it left out. See `pill-overflow.ts`.
+							onOverflow: setPillOverflowRows,
+						},
+					);
+					if (!bar) {
+						// A row with nothing on it keeps its height, so the rows do not jump
+						// up and down as a status comes and goes.
+						lines.push("");
+						spansByRow.push([]);
+						continue;
+					}
+					// Flush left, in the editor's first column: the bar's round cap sits
+					// under the editor's rail rather than a column to its right.
+					const line = truncateToWidth(bar, width, "");
+					spansByRow.push(
+						recordRowSpans(
+							width,
+							spans,
+							0,
+							visibleWidth(line),
+							rowIndex,
+							segmentRows.length,
+							anchors,
+						),
+					);
+					lines.push(line);
+				}
 				// Nothing has content: draw nothing rather than a bare pair of caps.
-				if (!bar) {
+				if (lines.every((line) => line === "")) {
 					pillSpansByWidth.delete(width);
 					clearPillAnchors();
 					return [""];
 				}
-				// Flush left, in the editor's first column: the bar's round cap sits
-				// under the editor's rail rather than a column to its right.
-				const line = truncateToWidth(bar, width, "");
-				rememberPillSpans(width, spans, 0, visibleWidth(line));
-				return [line];
+				pillSpansByWidth.set(width, spansByRow);
+				setPillAnchors(anchors);
+				if (pillSpansByWidth.size > PILL_HIT_MAP_LIMIT) {
+					const oldest = pillSpansByWidth.keys().next();
+					if (!oldest.done) pillSpansByWidth.delete(oldest.value);
+				}
+				return lines;
 			},
 		};
 
