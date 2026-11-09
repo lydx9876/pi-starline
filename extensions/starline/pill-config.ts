@@ -33,6 +33,14 @@ export type PillConfig = {
 	 * after it move down, the rest stays on the first row. `null` keeps one row.
 	 */
 	rowBreak: string | null;
+	/**
+	 * Wrap instead of dropping: a row that runs out of width continues on the next
+	 * line, up to `maxLines` lines. `false` keeps the old behaviour, where the pills
+	 * that do not fit collapse into the `+N` counter.
+	 */
+	wrap: boolean;
+	/** Lines one row may wrap onto, counter and all; the last line keeps the `+N`. */
+	maxLines: number;
 };
 
 export const EXTENSION_STATUS_SEGMENT = "extensionStatus";
@@ -84,6 +92,8 @@ export const DEFAULT_PILL_CONFIG: PillConfig = {
 	caps: "round",
 	bubbleAnimation: true,
 	rowBreak: null,
+	wrap: false,
+	maxLines: 3,
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -109,6 +119,12 @@ function parseCaps(value: unknown): PillCaps {
 /** A row break is a segment name that is actually on the bar; anything else is no break. */
 function parseRowBreak(value: unknown): string | null {
 	return typeof value === "string" && isKnownPillSegment(value) ? value : null;
+}
+
+/** One line is the floor, and a wrap budget past a few lines would eat the screen. */
+function parseMaxLines(value: unknown): number {
+	if (typeof value !== "number" || !Number.isInteger(value) || value < 1) return DEFAULT_PILL_CONFIG.maxLines;
+	return Math.min(value, 8);
 }
 
 /** A segment name is usable if it maps to a variable or addresses a status. */
@@ -193,5 +209,7 @@ export function normalizePillConfig(value: unknown): PillConfig {
 				? value.bubbleAnimation
 				: DEFAULT_PILL_CONFIG.bubbleAnimation,
 		rowBreak: parseRowBreak(value.rowBreak),
+		wrap: typeof value.wrap === "boolean" ? value.wrap : DEFAULT_PILL_CONFIG.wrap,
+		maxLines: parseMaxLines(value.maxLines),
 	};
 }

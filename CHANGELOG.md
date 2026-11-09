@@ -10,6 +10,23 @@ notes, so write it for someone reading the releases page, not for someone readin
 the diff. A tag with no section here fails the release before anything reaches
 npm.
 
+## [0.12.2] - 2026-11-09
+
+Two additions, local to this fork: the pill bar can be drawn on two rows, and a
+row that does not fit can wrap instead of dropping pills into the counter.
+
+**Added**
+
+- `pill.rowBreak` names a segment on the bar; that segment and everything after it
+  move to a second row, so the core read-outs keep one line while extension
+  statuses get their own. Omitted, or a name that is not on the bar, keeps the
+  single row as before.
+- `pill.wrap` continues a row on the next line where it runs out of width, up to
+  `pill.maxLines` lines (default `3`, capped at `8`). The last allowed line keeps
+  the `+N` counter, so the bar cannot grow without bound. Off by default, which
+  keeps the old behaviour.
+- Bubbles open above the line that was clicked, not over the bar.
+
 ## [0.12.1] - 2026-11-09
 
 One addition, local to this fork: the pill bar can be drawn on two rows.

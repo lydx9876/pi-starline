@@ -29,7 +29,7 @@ import { renderGitSegments } from "./git-segments";
 import { resolveRuntimeSymbol } from "./icons";
 import type { LiveContextOverride } from "./live-context";
 import { requestPointerShape } from "./mouse/pointer-shape";
-import { collectPillInputs, type PillSpan, renderPillBar } from "./pill";
+import { collectPillInputs, type PillOverflow, type PillSpan, renderPillBar } from "./pill";
 import { pillActionFor, queuedSegmentText, runPillAction } from "./pill-actions";
 import { clearPillAnchors, setPillAnchors } from "./pill-anchors";
 import { closePillBubble, isPillBubbleOpenFor, type PillAnchor } from "./pill-bubble";
@@ -104,19 +104,18 @@ export function splitPillSegmentRows(pill: {
  * each pill needs for a bubble. The row and the row count travel with the anchor,
  * so a bubble opens above the row that was clicked rather than over the bar.
  */
-function recordRowSpans(
-	width: number,
+/**
+ * Clamp one line's spans to what the terminal actually shows. The bar starts
+ * `columnOffset` columns in, and the line may have been cut again after the bar
+ * was, so both ends are trimmed to the visible width.
+ */
+function clampSpans(
 	spans: readonly PillSpan[],
 	columnOffset: number,
 	lineWidth: number,
-	row: number,
-	rows: number,
-	anchorsOut: Map<string, PillAnchor>,
 ): PillSpan[] {
 	const visibleSpans: PillSpan[] = [];
 	for (const span of spans) {
-		// The bar starts `columnOffset` columns in, and the line may have been cut
-		// again after the bar was; clamp to what the terminal actually shows.
 		const startColumn = Math.min(lineWidth, span.startColumn + columnOffset);
 		const endColumn = Math.min(lineWidth, span.endColumn + columnOffset);
 		if (endColumn <= startColumn) continue;
@@ -126,21 +125,38 @@ function recordRowSpans(
 			Math.min(endColumn, span.bodyEndColumn + columnOffset),
 		);
 		visibleSpans.push({ ...span, startColumn, endColumn, bodyStartColumn, bodyEndColumn });
-		// Same columns, plus the colours, for anything that wants to sit next to
-		// this pill later — a bubble today, whatever the next action needs.
-		anchorsOut.set(span.key, {
-			key: span.key,
-			startColumn: bodyStartColumn,
-			endColumn: bodyEndColumn,
-			centerColumn: Math.floor((startColumn + endColumn - 1) / 2),
-			terminalWidth: width,
-			background: span.bg,
-			foreground: span.fg,
-			row,
-			rows,
-		});
 	}
 	return visibleSpans;
+}
+
+/**
+ * Record where each pill ended up, once every line is known.
+ *
+ * Deferred to the end of the render because a wrapped bar only knows its line
+ * count then, and a bubble has to be placed above the line that was clicked.
+ * Same columns, plus the colours, for anything that wants to sit next to this
+ * pill later — a bubble today, whatever the next action needs.
+ */
+function recordAnchors(
+	width: number,
+	lines: readonly PillSpan[][],
+	anchorsOut: Map<string, PillAnchor>,
+): void {
+	for (const [row, spans] of lines.entries()) {
+		for (const span of spans) {
+			anchorsOut.set(span.key, {
+				key: span.key,
+				startColumn: span.bodyStartColumn,
+				endColumn: span.bodyEndColumn,
+				centerColumn: Math.floor((span.startColumn + span.endColumn - 1) / 2),
+				terminalWidth: width,
+				background: span.bg,
+				foreground: span.fg,
+				row,
+				rows: lines.length,
+			});
+		}
+	}
 }
 
 /** Prefix a label with an icon, collapsing to the label when there is no icon. */
@@ -614,71 +630,69 @@ export function installFooter(
 
 				// One row normally, two when `pill.rowBreak` names a segment on the bar:
 				// everything from that segment on drops to the second row.
-				const segmentRows = splitPillSegmentRows(config.pill);
+				const segmentGroups = splitPillSegmentRows(config.pill);
 				const statuses = [
 					...extensionStatuses.left,
 					...extensionStatuses.middle,
 					...extensionStatuses.right,
 				];
+				const collect = (groupSegments: readonly string[]) =>
+					collectPillInputs(
+						[...groupSegments],
+						statuses,
+						renderVariable,
+						pillSpecFor,
+						(key) => getExtensionStatusColor(config, key) ?? config.colors.extensionStatus,
+						(key) => getExtensionStatusIcon(config, key),
+						// A squeezed git pill must keep its dirty counts and operation; the
+						// branch name is the part that gives way.
+						(segment) => (segment === "git" ? git.labelTailColumns : 0),
+					);
 				const lines: string[] = [];
-				const spansByRow: PillSpan[][] = [];
+				const spansByLine: PillSpan[][] = [];
 				const anchors = new Map<string, PillAnchor>();
-				for (const [rowIndex, rowSegments] of segmentRows.entries()) {
-					const spans: PillSpan[] = [];
-					const bar = renderPillBar(
-						collectPillInputs(
-							rowSegments,
-							statuses,
-							renderVariable,
-							pillSpecFor,
-							(key) => getExtensionStatusColor(config, key) ?? config.colors.extensionStatus,
-							(key) => getExtensionStatusIcon(config, key),
-							// A squeezed git pill must keep its dirty counts and operation; the
-							// branch name is the part that gives way.
-							(segment) => (segment === "git" ? git.labelTailColumns : 0),
-						),
-						theme,
-						colorSource,
-						config.pill,
-						width,
-						{
+				for (const groupSegments of segmentGroups) {
+					let rest = collect(groupSegments);
+					let drawn = 0;
+					while (rest.length > 0) {
+						const spans: PillSpan[] = [];
+						let dropped: readonly PillOverflow[] = [];
+						const bar = renderPillBar(rest, theme, colorSource, config.pill, width, {
 							ascii: iconMode === "ascii",
 							onSpan: (span) => spans.push(span),
 							// The counter pill answers a click with what it is counting, so the
 							// render has to say which pills it left out. See `pill-overflow.ts`.
-							onOverflow: setPillOverflowRows,
-						},
-					);
-					if (!bar) {
-						// A row with nothing on it keeps its height, so the rows do not jump
-						// up and down as a status comes and goes.
-						lines.push("");
-						spansByRow.push([]);
-						continue;
+							onOverflow: (rows) => {
+								dropped = rows;
+								setPillOverflowRows(rows);
+							},
+						});
+						// An empty group draws nothing at all: a status coming and going should
+						// not leave a bare row behind.
+						if (!bar) break;
+						// Flush left, in the editor's first column: the bar's round cap sits
+						// under the editor's rail rather than a column to its right.
+						const line = truncateToWidth(bar, width, "");
+						lines.push(line);
+						spansByLine.push(clampSpans(spans, 0, visibleWidth(line)));
+						drawn++;
+						// Wrapping: continue on a new line where this one ran out. The counter
+						// on the last allowed line is then the answer for whatever is left.
+						if (!config.pill.wrap || dropped.length === 0 || drawn >= config.pill.maxLines) break;
+						const nextStart = rest.findIndex((input) => input.key === dropped[0].key);
+						// A single pill wider than the line would otherwise loop forever.
+						if (nextStart <= 0) break;
+						rest = rest.slice(nextStart);
 					}
-					// Flush left, in the editor's first column: the bar's round cap sits
-					// under the editor's rail rather than a column to its right.
-					const line = truncateToWidth(bar, width, "");
-					spansByRow.push(
-						recordRowSpans(
-							width,
-							spans,
-							0,
-							visibleWidth(line),
-							rowIndex,
-							segmentRows.length,
-							anchors,
-						),
-					);
-					lines.push(line);
 				}
 				// Nothing has content: draw nothing rather than a bare pair of caps.
-				if (lines.every((line) => line === "")) {
+				if (lines.length === 0) {
 					pillSpansByWidth.delete(width);
 					clearPillAnchors();
 					return [""];
 				}
-				pillSpansByWidth.set(width, spansByRow);
+				recordAnchors(width, spansByLine, anchors);
+				pillSpansByWidth.set(width, spansByLine);
 				setPillAnchors(anchors);
 				if (pillSpansByWidth.size > PILL_HIT_MAP_LIMIT) {
 					const oldest = pillSpansByWidth.keys().next();
