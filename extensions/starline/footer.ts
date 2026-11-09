@@ -367,6 +367,7 @@ export function installFooter(
 							modelPillLabel(config.icons.model, state.modelLabel, {
 								ascii: iconMode === "ascii",
 								timing: hooks.getTurnTiming?.(),
+								showTiming: config.features.pillElapsed,
 							}),
 						)
 					: "";

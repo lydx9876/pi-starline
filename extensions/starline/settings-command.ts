@@ -104,6 +104,7 @@ const featureSettingLabels: Record<FeatureSettingId, string> = {
 	statusLine: "Status line",
 	copyFriendly: "Copy-friendly mode",
 	embedWorkingStatus: "Working row in the editor",
+	pillElapsed: "Elapsed time in the model pill",
 };
 
 const featureSettingDescriptions: Record<FeatureSettingId, string> = {
@@ -113,6 +114,8 @@ const featureSettingDescriptions: Record<FeatureSettingId, string> = {
 		"Hide editor and previous-message rail glyphs for cleaner native terminal selection.",
 	embedWorkingStatus:
 		"Let the editor take Pi's working indicator, so the spinner rides in the model pill. Turn it off and Pi draws its own Working… row above the editor.",
+	pillElapsed:
+		"Show the run's elapsed time behind the model name. Turn it off when another row already shows the run.",
 };
 
 /** Row label per bar segment. The order rows are listed in is fixed. */

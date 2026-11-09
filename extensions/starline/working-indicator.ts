@@ -177,13 +177,15 @@ export function modelPillIcon(icon: string, frame: string | undefined): string {
 export function modelPillLabel(
 	icon: string,
 	label: string,
-	options: { ascii?: boolean; timing?: TurnTiming } = {},
+	options: { ascii?: boolean; timing?: TurnTiming; showTiming?: boolean } = {},
 ): string {
 	if (!label) return "";
 	const iconSlot = modelPillIcon(icon, readWorkingFrame(options.ascii === true));
 	const working = isPlainSpinnerWorking();
 	const timing = options.timing ?? {};
-	const elapsedMs = working ? timing.running : timing.last;
+	// A caller that already shows the run elsewhere (Pi's own working row) can ask
+	// for the name alone with `features.pillElapsed: false`.
+	const elapsedMs = options.showTiming === false ? undefined : working ? timing.running : timing.last;
 	const text = elapsedMs === undefined ? label : `${label} ${buildElapsedLabel(elapsedMs)}`;
 	return iconSlot ? `${iconSlot} ${text}` : text;
 }

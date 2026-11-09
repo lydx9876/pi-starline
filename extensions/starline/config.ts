@@ -88,6 +88,12 @@ export type UiFeaturesConfig = {
 	 * `Working…` row back above the editor.
 	 */
 	embedWorkingStatus: boolean;
+	/**
+	 * Show the run's elapsed time behind the model name in the model pill. Turn it
+	 * off when another row already carries the run (Pi's own working row, or a
+	 * working line of your own).
+	 */
+	pillElapsed: boolean;
 };
 
 export type GitConfig = {
@@ -340,6 +346,7 @@ export const defaultConfig: PolishedTuiConfig = {
 		statusLine: true,
 		copyFriendly: false,
 		embedWorkingStatus: true,
+		pillElapsed: true,
 	},
 	extensionStatuses: {
 		defaultPlacement: "right",
@@ -597,6 +604,7 @@ function normalizeUiFeatures(record: Record<string, unknown>): UiFeaturesConfig 
 		statusLine: booleanValue(record, "statusLine"),
 		copyFriendly: booleanValue(record, "copyFriendly"),
 		embedWorkingStatus: booleanValue(record, "embedWorkingStatus"),
+		pillElapsed: booleanValue(record, "pillElapsed"),
 	};
 }
 
@@ -838,7 +846,8 @@ function isUiFeatureKey(value: string): value is keyof UiFeaturesConfig {
 		value === "editor" ||
 		value === "statusLine" ||
 		value === "copyFriendly" ||
-		value === "embedWorkingStatus"
+		value === "embedWorkingStatus" ||
+		value === "pillElapsed"
 	);
 }
 

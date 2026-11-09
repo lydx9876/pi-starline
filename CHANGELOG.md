@@ -10,6 +10,17 @@ notes, so write it for someone reading the releases page, not for someone readin
 the diff. A tag with no section here fails the release before anything reaches
 npm.
 
+## [0.12.4] - 2026-11-09
+
+One addition, local to this fork: the model pill can drop the elapsed time.
+
+**Added**
+
+- `features.pillElapsed` (default `true`). With `features.embedWorkingStatus:
+  false`, Pi's own working row shows the run, so the elapsed time behind the
+  model name is a second copy of it. Set `pillElapsed: false` to leave the name
+  alone. Config change, no restart of the session needed beyond a reload.
+
 ## [0.12.3] - 2026-11-09
 
 One addition, local to this fork: the working row above the editor can be handed
