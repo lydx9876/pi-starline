@@ -10,6 +10,25 @@ notes, so write it for someone reading the releases page, not for someone readin
 the diff. A tag with no section here fails the release before anything reaches
 npm.
 
+## [0.12.6] - 2026-11-09
+
+One addition, local to this fork: the border label is no longer one colour.
+
+**Added**
+
+- `colors.provider` puts the provider behind the model in its own style (dim by
+  default). The label formatter now runs each variable through its own colour —
+  `colors.model`, `colors.provider`, `colors.thinking` (falling back to the
+  theme's thinking colour for the level, the key the footer reads) — and the
+  border stops re-wrapping a status that already carries ANSI, so the parts keep
+  their colours.
+
+**Changed**
+
+- A separator left dangling before a parenthesis is fused: with no provider, the
+  template `$model · $provider($thinking)` now reads `model (high)` rather than
+  `model · (high)`.
+
 ## [0.12.5] - 2026-11-09
 
 One addition, local to this fork: a label on the editor's top border.

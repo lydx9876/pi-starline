@@ -240,6 +240,8 @@ export type PolishedTuiConfig = {
 	icons: ResolvedIcons;
 	colors: {
 		model: ColorSpec;
+		/** The provider's name, wherever it sits next to the model. Defaults to dimmer than the model. */
+		provider: ColorSpec;
 		/** Unset derives the colour from the level via the theme's thinking* keys. */
 		thinking?: ColorSpec;
 		/** The queued-messages pill, which only exists while something is queued. */
@@ -318,6 +320,7 @@ export const defaultConfig: PolishedTuiConfig = {
 	},
 	colors: {
 		model: "bold blue",
+		provider: "bright-black",
 		queue: "bold yellow",
 		subagents: "bold green",
 		cwd: "bold cyan",
@@ -570,6 +573,7 @@ export function expandPaletteInRecord(
 function normalizeColors(record: Record<string, unknown>): Partial<PolishedTuiConfig["colors"]> {
 	return definedColors({
 		model: colorValue(record, "model"),
+		provider: colorValue(record, "provider"),
 		thinking: colorValue(record, "thinking"),
 		queue: colorValue(record, "queue"),
 		subagents: colorValue(record, "subagents"),

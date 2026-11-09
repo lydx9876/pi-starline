@@ -316,7 +316,10 @@ function composeBorderLine(
 	const rightAligned =
 		labelWidth > 0 && !centred && leftWidth === 0 && rightWidth === 0 && labelWidth + 2 <= width;
 
-	let out = statusWidth > 0 ? `${border("── ")}${status}${border(" ")}` : "";
+	// A pre-styled status (the editor's metadata label colours its parts) must not be
+	// wrapped again, or the frame's own colour would swallow the parts' colours.
+	const paintedStatus = status.includes("\x1b") ? status : border(status);
+	let out = statusWidth > 0 ? `${border("── ")}${paintedStatus}${border(" ")}` : "";
 	let cursor = leftWidth;
 	const end = width - rightWidth;
 	if (centred) {

@@ -50,6 +50,9 @@ export function renderEditorMetadata(
 	out = out
 		// `云端反代()` when the run has no thinking level, or `()` on its own.
 		.replace(/\(\s*\)/g, "")
+		// A separator left dangling in front of a parenthesis (`model · (high)` when
+		// the provider is empty) reads better fused: `model (high)`.
+		.replace(/·\s*\(/g, "(")
 		// A separator with nothing on one side of it.
 		.replace(/·\s*·/g, "·")
 		.replace(/^\s*·\s*|\s*·\s*$/g, "")

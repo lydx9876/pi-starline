@@ -37,7 +37,7 @@ import {
 	isStarlineEditorFactory,
 	markEditorFactory,
 } from "./editor-factory-marker";
-import { installFooter } from "./footer";
+import { installFooter, thinkingThemeKey } from "./footer";
 import {
 	buildSessionDurationLabel,
 	compactionFailureNotice,
@@ -47,6 +47,7 @@ import {
 	resolveSessionStartEpoch,
 } from "./format";
 import { renderEditorMetadata } from "./editor-metadata";
+import { renderStyleForSource } from "./style";
 import { emptyGitStatus } from "./git";
 import { setActiveGitStatus } from "./git-live";
 import { LiveContextController } from "./live-context";
@@ -205,16 +206,29 @@ export default function (pi: ExtensionAPI) {
 		if (!template) return "";
 		const model = ctx.model;
 		const level = getThinkingLevel();
+		// Each part carries its own colour, so the subject reads at a glance: the
+		// model in `colors.model`, the provider receding behind it, and the thinking
+		// level in the theme's own thinking colour (`colors.thinking` overrides it),
+		// the same key the footer used before this label existed.
+		const theme = ctx.ui.theme;
+		const source = config.colorSources.editor;
+		const paint = (spec: string, text: string) =>
+			text ? renderStyleForSource(theme, source, spec, text) : "";
+		const cwdLabel = formatCwdLabel(ctx.cwd, "", {
+			mode: config.pathDisplay.mode,
+			depth: config.pathDisplay.depth,
+		}).trim();
 		return renderEditorMetadata(template, {
-			model: (config.editorModelLabel === "name" ? model?.name || model?.id : model?.id) ?? "",
-			name: model?.name ?? "",
-			provider: model ? formatProviderLabel(model.provider) : "",
-			thinking: level === "off" ? "" : level,
-			cwd: formatCwdLabel(ctx.cwd, "", {
-				mode: config.pathDisplay.mode,
-				depth: config.pathDisplay.depth,
-			}).trim(),
-			branch: state.branch ?? "",
+			model: paint(
+				config.colors.model,
+				(config.editorModelLabel === "name" ? model?.name || model?.id : model?.id) ?? "",
+			),
+			name: paint(config.colors.model, model?.name ?? ""),
+			provider: paint(config.colors.provider, model ? formatProviderLabel(model.provider) : ""),
+			thinking:
+				level === "off" ? "" : paint(config.colors.thinking ?? thinkingThemeKey(level), level),
+			cwd: paint(config.colors.cwd, cwdLabel),
+			branch: paint(config.colors.gitBranch, state.branch ?? ""),
 		});
 	};
 	const syncFooterState = (ctx: ExtensionContext) =>
