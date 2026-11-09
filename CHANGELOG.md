@@ -10,6 +10,21 @@ notes, so write it for someone reading the releases page, not for someone readin
 the diff. A tag with no section here fails the release before anything reaches
 npm.
 
+## [0.12.3] - 2026-11-09
+
+One addition, local to this fork: the working row above the editor can be handed
+back to Pi.
+
+**Added**
+
+- `features.embedWorkingStatus` (default `true`). Today's behaviour is the deal
+  Starline's editor takes: Pi hands the working indicator to the editor, the plain
+  spinner and the run's elapsed time ride in the model pill, and Pi's own row
+  above the editor stays empty. Set it to `false` and Pi draws its own `Working…`
+  row above the editor again, while the custom editor, mouse handling and pill
+  bar stay. Read when the editor is built, so it applies from the next session or
+  a `/reload`.
+
 ## [0.12.2] - 2026-11-09
 
 Two additions, local to this fork: the pill bar can be drawn on two rows, and a

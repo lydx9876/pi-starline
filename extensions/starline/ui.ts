@@ -549,8 +549,12 @@ export class PolishedEditor extends CustomEditor {
 	 * spinner can sit in the model pill; see `working-indicator.ts`. The base class
 	 * never sees the indicator (starline does not forward it), so the border it
 	 * would draw stays a plain rule and this frame stays the only one.
+	 * Configurable so `features.embedWorkingStatus: false` declines the deal and Pi
+	 * draws its own `Working…` row above the editor again. Read by Pi from the
+	 * instance, so the value is taken once at construction (a config change applies
+	 * to the next editor, i.e. the next session or `/reload`).
 	 */
-	readonly embedWorkingStatus = true;
+	readonly embedWorkingStatus: boolean;
 
 	constructor(
 		tui: TUI,
@@ -563,6 +567,7 @@ export class PolishedEditor extends CustomEditor {
 		this.borderColor = (text: string) => safeThemeFg(uiTheme, "border", text);
 		this.uiTheme = uiTheme;
 		this.getConfig = getConfig;
+		this.embedWorkingStatus = getConfig().features.embedWorkingStatus;
 	}
 
 	render(width: number): string[] {
@@ -631,13 +636,15 @@ export class WrappedPolishedEditor implements EditorComponent {
 	 * Same contract as `PolishedEditor`: see the note there. The wrapper is what Pi
 	 * mounts, so the wrapper is what has to advertise it.
 	 */
-	readonly embedWorkingStatus = true;
+	readonly embedWorkingStatus: boolean;
 
 	constructor(
 		private readonly base: WrappedEditor,
 		private readonly uiTheme: Theme,
 		private readonly getConfig: () => PolishedTuiConfig,
-	) {}
+	) {
+		this.embedWorkingStatus = getConfig().features.embedWorkingStatus;
+	}
 
 	private lastFrame: DrawnFrame | undefined;
 

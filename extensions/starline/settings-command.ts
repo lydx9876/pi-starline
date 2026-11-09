@@ -103,6 +103,7 @@ const featureSettingLabels: Record<FeatureSettingId, string> = {
 	editor: "Editor",
 	statusLine: "Status line",
 	copyFriendly: "Copy-friendly mode",
+	embedWorkingStatus: "Working row in the editor",
 };
 
 const featureSettingDescriptions: Record<FeatureSettingId, string> = {
@@ -110,6 +111,8 @@ const featureSettingDescriptions: Record<FeatureSettingId, string> = {
 	statusLine: "Enable or disable Starline's custom footer/status line.",
 	copyFriendly:
 		"Hide editor and previous-message rail glyphs for cleaner native terminal selection.",
+	embedWorkingStatus:
+		"Let the editor take Pi's working indicator, so the spinner rides in the model pill. Turn it off and Pi draws its own Working… row above the editor.",
 };
 
 /** Row label per bar segment. The order rows are listed in is fixed. */

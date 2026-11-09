@@ -81,6 +81,13 @@ export type UiFeaturesConfig = {
 	editor: boolean;
 	statusLine: boolean;
 	copyFriendly: boolean;
+	/**
+	 * Starline's editor takes Pi's working indicator into its own frame when true,
+	 * which is what puts the plain spinner in the model pill and leaves Pi's row
+	 * above the editor empty. `false` declines that deal, so Pi draws its own
+	 * `Working…` row back above the editor.
+	 */
+	embedWorkingStatus: boolean;
 };
 
 export type GitConfig = {
@@ -332,6 +339,7 @@ export const defaultConfig: PolishedTuiConfig = {
 		editor: true,
 		statusLine: true,
 		copyFriendly: false,
+		embedWorkingStatus: true,
 	},
 	extensionStatuses: {
 		defaultPlacement: "right",
@@ -588,6 +596,7 @@ function normalizeUiFeatures(record: Record<string, unknown>): UiFeaturesConfig 
 		editor: booleanValue(record, "editor"),
 		statusLine: booleanValue(record, "statusLine"),
 		copyFriendly: booleanValue(record, "copyFriendly"),
+		embedWorkingStatus: booleanValue(record, "embedWorkingStatus"),
 	};
 }
 
@@ -825,7 +834,12 @@ function isColorSourceKey(value: string): value is keyof ColorSourcesConfig {
 }
 
 function isUiFeatureKey(value: string): value is keyof UiFeaturesConfig {
-	return value === "editor" || value === "statusLine" || value === "copyFriendly";
+	return (
+		value === "editor" ||
+		value === "statusLine" ||
+		value === "copyFriendly" ||
+		value === "embedWorkingStatus"
+	);
 }
 
 function validColorSourceEntries(record: Record<string, unknown>): Partial<ColorSourcesConfig> {
