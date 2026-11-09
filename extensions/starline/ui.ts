@@ -538,6 +538,23 @@ function renderPolishedFrame({
 	return clampRenderedLines(renderedLines, width);
 }
 
+/**
+ * What the top border says when Starline redraws the frame. A live working or
+ * retry status owns the slot (it is transient and informative); otherwise the
+ * configured `editorMetadataFormat` template fills it, and an empty template
+ * leaves the border a plain rule.
+ */
+function editorBorderStatus(
+	config: PolishedTuiConfig,
+	width: number,
+	getMetadata?: () => string,
+): string | undefined {
+	const working = workingStatusForBorder(config, Math.max(1, width - 5));
+	if (working) return working;
+	const text = getMetadata?.()?.trim();
+	return text ? text : undefined;
+}
+
 export class PolishedEditor extends CustomEditor {
 	private readonly getConfig: () => PolishedTuiConfig;
 	private readonly uiTheme: Theme;
@@ -555,6 +572,12 @@ export class PolishedEditor extends CustomEditor {
 	 * to the next editor, i.e. the next session or `/reload`).
 	 */
 	readonly embedWorkingStatus: boolean;
+	/**
+	 * Text for the top border when nothing transient owns it. Taken from the
+	 * session's own config each render, so `/reload` and config edits apply
+	 * without rebuilding the editor.
+	 */
+	private readonly getMetadata?: () => string;
 
 	constructor(
 		tui: TUI,
@@ -562,12 +585,14 @@ export class PolishedEditor extends CustomEditor {
 		keybindings: KeybindingsManager,
 		uiTheme: Theme,
 		getConfig: () => PolishedTuiConfig,
+		getMetadata?: () => string,
 	) {
 		super(tui, theme, keybindings, { paddingX: 0 });
 		this.borderColor = (text: string) => safeThemeFg(uiTheme, "border", text);
 		this.uiTheme = uiTheme;
 		this.getConfig = getConfig;
 		this.embedWorkingStatus = getConfig().features.embedWorkingStatus;
+		this.getMetadata = getMetadata;
 	}
 
 	render(width: number): string[] {
@@ -586,7 +611,7 @@ export class PolishedEditor extends CustomEditor {
 			autocompleteSource: this as unknown as AutocompleteEditorInternals,
 			uiTheme: this.uiTheme,
 			config,
-			borderStatus: workingStatusForBorder(config, Math.max(1, width - 5)),
+			borderStatus: editorBorderStatus(config, width, this.getMetadata),
 			modeBorder: this.borderColor?.bind(this),
 			// Pi paints the draft's scroll position into the borders it draws, and both
 			// of those lines are dropped when Starline redraws the frame, so the counts
@@ -642,6 +667,7 @@ export class WrappedPolishedEditor implements EditorComponent {
 		private readonly base: WrappedEditor,
 		private readonly uiTheme: Theme,
 		private readonly getConfig: () => PolishedTuiConfig,
+		private readonly getMetadata?: () => string,
 	) {
 		this.embedWorkingStatus = getConfig().features.embedWorkingStatus;
 	}
@@ -740,7 +766,7 @@ export class WrappedPolishedEditor implements EditorComponent {
 			uiTheme: this.uiTheme,
 			config,
 			vimStatus: readVimStatus(this.base, this.uiTheme),
-			borderStatus: workingStatusForBorder(config, Math.max(1, width - 5)),
+			borderStatus: editorBorderStatus(config, width, this.getMetadata),
 			modeBorder: this.base.borderColor?.bind(this.base),
 			// The base's frame lines are dropped, so its scroll cues are read back
 			// from them and redrawn by Starline's own borders.

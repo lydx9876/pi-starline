@@ -41,9 +41,12 @@ import { installFooter } from "./footer";
 import {
 	buildSessionDurationLabel,
 	compactionFailureNotice,
+	formatCwdLabel,
+	formatProviderLabel,
 	invalidateUsageTotalsCache,
 	resolveSessionStartEpoch,
 } from "./format";
+import { renderEditorMetadata } from "./editor-metadata";
 import { emptyGitStatus } from "./git";
 import { setActiveGitStatus } from "./git-live";
 import { LiveContextController } from "./live-context";
@@ -191,6 +194,29 @@ export default function (pi: ExtensionAPI) {
 	};
 	const getThinkingLevel = () =>
 		sessionLifecycle.isCurrent() ? pi.getThinkingLevel() : ("off" as const);
+	/**
+	 * The editor's top-border label, read fresh each render so a template edit or a
+	 * model switch lands without rebuilding the editor. Empty when
+	 * `editorMetadataFormat` is unset, which leaves the border a plain rule.
+	 */
+	const editorMetadataText = (ctx: ExtensionContext): string => {
+		const config = getCurrentConfig();
+		const template = config.editorMetadataFormat;
+		if (!template) return "";
+		const model = ctx.model;
+		const level = getThinkingLevel();
+		return renderEditorMetadata(template, {
+			model: (config.editorModelLabel === "name" ? model?.name || model?.id : model?.id) ?? "",
+			name: model?.name ?? "",
+			provider: model ? formatProviderLabel(model.provider) : "",
+			thinking: level === "off" ? "" : level,
+			cwd: formatCwdLabel(ctx.cwd, "", {
+				mode: config.pathDisplay.mode,
+				depth: config.pathDisplay.depth,
+			}).trim(),
+			branch: state.branch ?? "",
+		});
+	};
 	const syncFooterState = (ctx: ExtensionContext) =>
 		syncState(
 			state,
@@ -457,7 +483,14 @@ export default function (pi: ExtensionAPI) {
 		const sessionTheme = ctx.ui.theme;
 		const factory = ((tui: TUI, theme: EditorTheme, keybindings: KeybindingsManager) => {
 			syncHardwareCursor(tui);
-			const editor = new PolishedEditor(tui, theme, keybindings, sessionTheme, getCurrentConfig);
+			const editor = new PolishedEditor(
+				tui,
+				theme,
+				keybindings,
+				sessionTheme,
+				getCurrentConfig,
+				() => editorMetadataText(ctx),
+			);
 			applyPasteCollapse(editor);
 			// Nothing on Pi's renderer points at the live editor, and the
 			// extension API hands out the factory rather than what it built — so
@@ -478,7 +511,12 @@ export default function (pi: ExtensionAPI) {
 			syncHardwareCursor(tui);
 			const base = baseFactory(tui, theme, keybindings);
 			applyPasteCollapse(base);
-			const wrapped = new WrappedPolishedEditor(base, sessionTheme, getCurrentConfig);
+			const wrapped = new WrappedPolishedEditor(
+				base,
+				sessionTheme,
+				getCurrentConfig,
+				() => editorMetadataText(ctx),
+			);
 			// Two references, because these are two different objects here: the
 			// wrapper is what gets mounted and hit-tested, while the draft's
 			// visual lines live on the base editor it delegates to.

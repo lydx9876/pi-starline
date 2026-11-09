@@ -10,6 +10,20 @@ notes, so write it for someone reading the releases page, not for someone readin
 the diff. A tag with no section here fails the release before anything reaches
 npm.
 
+## [0.12.5] - 2026-11-09
+
+One addition, local to this fork: a label on the editor's top border.
+
+**Added**
+
+- `editorMetadataFormat`: a template for the editor's top border, empty by
+  default (the border stays a plain rule, as since 0.9). Variables are the pill's
+  own vocabulary — `$model`, `$name`, `$provider`, `$thinking`, `$cwd`,
+  `$branch` — and empty values collapse out, so
+  `"$model · $provider($thinking)"` drops the `()` and the separator when the run
+  has no thinking level. A transient working/retry status still owns the slot
+  when one exists. Read each render, so a template edit lands without a restart.
+
 ## [0.12.4] - 2026-11-09
 
 One addition, local to this fork: the model pill can drop the elapsed time.

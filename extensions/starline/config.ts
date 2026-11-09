@@ -218,6 +218,13 @@ export type PolishedTuiConfig = {
 	contextStyle: ContextStyle;
 	segmentOptions: SegmentOptionsConfig;
 	editorModelLabel: ModelLabelSource;
+	/**
+	 * Template for the text on the editor's top border, e.g.
+	 * `"$model · $provider($thinking)"`. Empty (default) draws no label: since 0.9
+	 * the model name lives in the pill, and the border carries only working
+	 * status. See `editor-metadata.ts` for the variables.
+	 */
+	editorMetadataFormat: string;
 	editorCursor: EditorCursorStyle;
 	/** Clicking in the editor text moves the caret there. Needs `mouse.enabled`. */
 	editorClickCursor: boolean;
@@ -289,6 +296,7 @@ export const defaultConfig: PolishedTuiConfig = {
 		subagents: { format: "agents" },
 	},
 	editorModelLabel: "id",
+	editorMetadataFormat: "",
 	editorCursor: "block",
 	editorClickCursor: true,
 	pasteCollapseLines: 11,
@@ -393,6 +401,10 @@ function parseContextStyle(value: unknown): ContextStyle {
 function parseEditorModelLabel(value: unknown): ModelLabelSource {
 	if (value === "id" || value === "name") return value;
 	return defaultConfig.editorModelLabel;
+}
+
+function parseEditorMetadataFormat(value: unknown): string {
+	return typeof value === "string" ? value : defaultConfig.editorMetadataFormat;
 }
 
 function parseContextThresholds(value: unknown): ContextThresholds {
@@ -983,6 +995,7 @@ export function mergeConfig(parsed: unknown): PolishedTuiConfig {
 		contextStyle: parseContextStyle(config.contextStyle),
 		segmentOptions: normalizeSegmentOptions(config.segmentOptions),
 		editorModelLabel: parseEditorModelLabel(config.editorModelLabel),
+		editorMetadataFormat: parseEditorMetadataFormat(config.editorMetadataFormat),
 		editorCursor: parseEditorCursorStyle(config.editorCursor),
 		editorClickCursor: config.editorClickCursor !== false,
 		pasteCollapseLines: parsePasteCollapseLines(config.pasteCollapseLines),
